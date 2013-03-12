@@ -139,7 +139,8 @@ GO
 
 CREATE PROCEDURE [Audit].[s_RecreateTableTriggers]
 (
-	@apply_to_schema_name varchar(100) = NULL
+	@apply_to_schema_name varchar(100) = NULL,
+	@remove_triggers_only bit = 0
 )  
 AS
 SET NOCOUNT ON
@@ -147,6 +148,8 @@ SET NOCOUNT ON
 DECLARE @schema_name sysname = N'',
 		@table_name sysname = N'',
 		@sql nvarchar(max) = N''
+
+SELECT @remove_triggers_only = ISNULL(@remove_triggers_only,0)
 
 DECLARE curs CURSOR FOR 
 	SELECT 
@@ -168,29 +171,33 @@ BEGIN
 	SET @sql = N'IF OBJECT_ID (''[' + @schema_name + N'].[tr_' + @table_name + N'_Audit]'',''TR'') IS NOT NULL BEGIN DROP TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] END;'
 	EXEC sp_executesql @sql
 	
-	PRINT '...Creating Trigger.'
+	IF @remove_triggers_only = 0
+		BEGIN
 
-	DECLARE @lf nchar(1) = NCHAR(10)
+			PRINT '...Creating Trigger.'
 
-	-- INSERT, UPDATE, DELETE Trigger
-	SET @sql = N''
-	SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] ON [' + @schema_name + N'].[' + @table_name + N'] ' + @lf + N'AFTER INSERT, UPDATE, DELETE ' + @lf + N'AS ' + @lf
-	SET @sql = @sql + N'SET NOCOUNT ON ' + @lf
-	SET @sql = @sql + N'BEGIN ' + @lf
-	SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Inserted FROM inserted; ' + @lf
-	SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Deleted FROM deleted; ' + @lf + @lf
-	SET @sql = @sql + N'  DECLARE @sql nvarchar(max), @action nvarchar(10) = ''insert''; ' + @lf + @lf
-	SET @sql = @sql + N'  IF EXISTS(SELECT * FROM deleted) ' + @lf
-	SET @sql = @sql + N'    BEGIN ' + @lf
-	SET @sql = @sql + N'      SET @action = CASE WHEN EXISTS(SELECT * FROM inserted) THEN N''update'' ELSE N''delete'' END ' + @lf
-	SET @sql = @sql + N'    END ' + @lf + @lf
-	SET @sql = @sql + N'  SELECT @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + N''',''' + @table_name + N''','''' + @action + '''',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted''); ' + @lf + @lf
-	SET @sql = @sql + N'  IF ISNULL(@sql,'''') <> '''' EXEC sp_executesql @sql; ' + @lf + @lf
-	SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Inserted; ' + @lf
-	SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Deleted; ' + @lf
-	SET @sql = @sql + N'END' + @lf
+			DECLARE @lf nchar(1) = NCHAR(10)
+
+			-- INSERT, UPDATE, DELETE Trigger
+			SET @sql = N''
+			SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] ON [' + @schema_name + N'].[' + @table_name + N'] ' + @lf + N'AFTER INSERT, UPDATE, DELETE ' + @lf + N'AS ' + @lf
+			SET @sql = @sql + N'SET NOCOUNT ON ' + @lf
+			SET @sql = @sql + N'BEGIN ' + @lf
+			SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Inserted FROM inserted; ' + @lf
+			SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Deleted FROM deleted; ' + @lf + @lf
+			SET @sql = @sql + N'  DECLARE @sql nvarchar(max), @action nvarchar(10) = ''insert''; ' + @lf + @lf
+			SET @sql = @sql + N'  IF EXISTS(SELECT * FROM deleted) ' + @lf
+			SET @sql = @sql + N'    BEGIN ' + @lf
+			SET @sql = @sql + N'      SET @action = CASE WHEN EXISTS(SELECT * FROM inserted) THEN N''update'' ELSE N''delete'' END ' + @lf
+			SET @sql = @sql + N'    END ' + @lf + @lf
+			SET @sql = @sql + N'  SELECT @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + N''',''' + @table_name + N''','''' + @action + '''',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted''); ' + @lf + @lf
+			SET @sql = @sql + N'  IF ISNULL(@sql,'''') <> '''' EXEC sp_executesql @sql; ' + @lf + @lf
+			SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Inserted; ' + @lf
+			SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Deleted; ' + @lf
+			SET @sql = @sql + N'END' + @lf
 	
-	EXEC sp_executesql @sql
+			EXEC sp_executesql @sql
+		END
 
 	FETCH NEXT FROM curs INTO @schema_name, @table_name
 END
