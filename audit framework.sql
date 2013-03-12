@@ -424,4 +424,10 @@ WHERE CloseDate IS NOT NULL;
 -- see what went into audit table
 SELECT * FROM Audit.Audit;
 
+-- see whats in testing table
+SELECT * FROM dbo.Testing;
+
+-- drop testing table
+DROP TABLE dbo.Testing;
+
 */
