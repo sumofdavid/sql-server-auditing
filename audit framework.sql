@@ -9,11 +9,11 @@ IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = 
 GO
 IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'AuditConfig' AND s.name = 'Audit') DROP TABLE [Audit].[AuditConfig]
 GO
-IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_PopulateAuditConfig' AND s.name = 'audit') DROP PROCEDURE [Audit].[s_PopulateAuditConfig]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_PopulateAuditConfig' AND s.name = 'Audit') DROP PROCEDURE [Audit].[s_PopulateAuditConfig]
 GO
-IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_RecreateTableTriggers' AND s.name = 'audit') DROP PROCEDURE [Audit].[s_RecreateTableTriggers]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_RecreateTableTriggers' AND s.name = 'Audit') DROP PROCEDURE [Audit].[s_RecreateTableTriggers]
 GO
-IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'FN' AND o.name = 's_GetAuditSQL' AND s.name = 'audit') DROP FUNCTION [Audit].[s_GetAuditSQL]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'FN' AND o.name = 's_GetAuditSQL' AND s.name = 'Audit') DROP FUNCTION [Audit].[s_GetAuditSQL]
 GO
 IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'V' AND o.name = 'v_AuditKey' AND s.name = 'Audit') DROP VIEW [Audit].[v_AuditKey];
 GO
@@ -339,10 +339,10 @@ PRINT N'If other schemas need to be setup, please rerun this last section with s
 IF ISNULL(@schema,'') <> ''
 BEGIN
 	PRINT 'Executing [Audit].[s_PopulateAuditConfig].'
-	EXEC  [Audit].[s_PopulateAuditConfig] @schema
+	EXEC  [Audit].[s_PopulateAuditConfig] @schema, 1
 	
 	PRINT 'Executing [Audit].[s_RecreateTableTriggers].'
-	EXEC  [Audit].[s_RecreateTableTriggers] @schema
+	EXEC  [Audit].[s_RecreateTableTriggers] @schema, 0
 END
 GO
 
