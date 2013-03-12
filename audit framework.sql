@@ -1,23 +1,23 @@
 
-print 'AUDIT SETUP START.'
+PRINT 'AUDIT SETUP START.'
 GO
 
 -- delete all existing objects
-print 'Deleting existing objects.'
+PRINT 'Deleting existing objects.'
 GO
-if exists (select 0 from sys.tables t join sys.schemas s on t.schema_id = s.schema_id where t.name = 'Audit' and s.name = 'Audit') drop table [Audit].[Audit]
+IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'Audit' AND s.name = 'Audit') DROP TABLE [Audit].[Audit]
 GO
-if exists (select 0 from sys.tables t join sys.schemas s on t.schema_id = s.schema_id where t.name = 'AuditConfig' and s.name = 'Audit') drop table [Audit].[AuditConfig]
+IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'AuditConfig' AND s.name = 'Audit') DROP TABLE [Audit].[AuditConfig]
 GO
-if exists (select * from sys.objects o join sys.schemas s on o.schema_id = s.schema_id where o.type = 'P' and o.name = 's_PopulateAuditConfig' and s.name = 'audit') drop procedure [Audit].[s_PopulateAuditConfig]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_PopulateAuditConfig' AND s.name = 'audit') DROP PROCEDURE [Audit].[s_PopulateAuditConfig]
 GO
-if exists (select * from sys.objects o join sys.schemas s on o.schema_id = s.schema_id where o.type = 'P' and o.name = 's_RecreateTableTriggers' and s.name = 'audit') drop procedure [Audit].[s_RecreateTableTriggers]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_RecreateTableTriggers' AND s.name = 'audit') DROP PROCEDURE [Audit].[s_RecreateTableTriggers]
 GO
-if exists (select * from sys.objects o join sys.schemas s on o.schema_id = s.schema_id where o.type = 'FN' and o.name = 's_GetAuditSQL' and s.name = 'audit') drop function [Audit].[s_GetAuditSQL]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'FN' AND o.name = 's_GetAuditSQL' AND s.name = 'audit') DROP FUNCTION [Audit].[s_GetAuditSQL]
 GO
-IF EXISTS (SELECT * FROM sys.objects o JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'V' AND o.name = 'v_AuditKey' AND s.name = 'Audit') DROP VIEW [Audit].[v_AuditKey];
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'V' AND o.name = 'v_AuditKey' AND s.name = 'Audit') DROP VIEW [Audit].[v_AuditKey];
 GO
-if exists (select 0 from sys.schemas s where s.name = 'Audit') drop schema [Audit]
+IF EXISTS (SELECT 0 FROM sys.schemas s WHERE s.name = 'Audit') DROP SCHEMA [Audit]
 GO
 
 
@@ -28,7 +28,7 @@ GO
 CREATE SCHEMA [Audit];
 GO
 
--- create sequence AuditKey
+-- create AuditKey generating view
 PRINT 'Creating AuditKey view'
 GO
 CREATE VIEW [Audit].[v_AuditKey] 
@@ -37,7 +37,7 @@ SELECT NEWID() AS [AuditKey];
 GO
 
 -- create table [Audit]
-print 'Creating [Audit].[Audit] table.'
+PRINT 'Creating [Audit].[Audit] table.'
 GO
 CREATE TABLE [Audit].[Audit]
 (
@@ -62,40 +62,34 @@ WITH
 GO
 
 -- create table [AuditConfig]
-print 'Creating [Audit].[AuditConfig] table.'
+PRINT 'Creating [Audit].[AuditConfig] table.';
 GO
+
 CREATE TABLE [Audit].[AuditConfig]
 (
 	[AuditConfigID] [int] IDENTITY(1,1) NOT NULL CONSTRAINT pk_AuditConfig PRIMARY KEY CLUSTERED,
+	[SchemaName] [sysname] NOT NULL,
 	[TableName] [sysname] NOT NULL,
 	[ColumnName] [sysname] NOT NULL,
 	[EnableAudit] [bit] NOT NULL CONSTRAINT df_AuditConfig_EnableAudit DEFAULT (1),
 	CONSTRAINT [uq_AuditConfig_TableName_ColumnName] UNIQUE NONCLUSTERED 
 	(
+		[SchemaName] ASC,
 		[Tablename] ASC,
 		[ColumnName] ASC
 	)
 	WITH 
 		(
-			PAD_INDEX = OFF, 
-			STATISTICS_NORECOMPUTE = OFF, 
-			IGNORE_DUP_KEY = OFF, 
-			ALLOW_ROW_LOCKS = ON, 
-			ALLOW_PAGE_LOCKS = ON,
-			DATA_COMPRESSION = PAGE,
 			FILLFACTOR = 100
 		)
-)
-WITH
-(
-	DATA_COMPRESSION = PAGE
 );
 GO
 
 
 -- create procedure [PopulateAuditConfig]
-print 'Creating [Audit].[s_PopulateAuditConfig] procedure.'
+PRINT 'Creating [Audit].[s_PopulateAuditConfig] procedure.';
 GO
+
 CREATE procedure [Audit].[s_PopulateAuditConfig]
 (
 	@apply_to_schema sysname = NULL,
@@ -109,27 +103,40 @@ IF @repopulate  = 1
 
 INSERT  INTO [Audit].[AuditConfig]
 (
-	Tablename,
+	SchemaName,
+	TableName,
 	ColumnName
 )
 SELECT
-    t.Name,
-    c.Name
+	s.[name],
+    t.[name],
+    c.[name]
 FROM sys.tables t
 	INNER JOIN sys.columns c
 		ON t.object_id = c.object_id
 	INNER JOIN sys.schemas s
-		ON t.schema_id = s.schema_id
+		ON t.schema_id = s.SCHEMA_ID
+	INNER JOIN	(
+				SELECT 
+					TABLE_SCHEMA,
+					TABLE_NAME
+				FROM INFORMATION_SCHEMA.COLUMNS
+				WHERE COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1
+				) i
+		ON t.name = i.TABLE_NAME
+		AND s.name = i.TABLE_SCHEMA
 WHERE (@apply_to_schema IS NULL OR s.name = @apply_to_schema)
 AND	c.name NOT IN ('ID','LU','FU','LastUpdate','FirstUpdate','LastUpdateDate','FirstUpdateDate','CreateDate','CreatedDate','CreateBy','CreatedBy','ModifiedBy','ModifiedDate')
-AND NOT EXISTS	(SELECT 0 FROM [Audit].[AuditConfig] ac WHERE ac.Tablename = t.[name] AND ac.ColumnName = c.[name])
-AND c.user_type_id NOT IN (128,129,130) -- don't include hierarchy, geography, geometry, xml
+AND NOT EXISTS	(SELECT 0 FROM [Audit].[AuditConfig] ac WHERE ac.Tablename = t.[name] AND ac.ColumnName = c.[name] AND ac.SchemaName = s.[name])
+AND c.user_type_id NOT IN (128,129,130,241) -- don't include hierarchy, geography, geometry, xml
+AND EXISTS(	SELECT 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1 AND t.name = TABLE_NAME AND s.name = TABLE_SCHEMA) -- only tables with IDENTITY
 ;
 GO
 
 -- create procedure [RecreateTableTriggers]
-print 'Creating [Audit].[s_RecreateTableTriggers] procedure.'
+PRINT 'Creating [Audit].[s_RecreateTableTriggers] procedure.'
 GO
+
 CREATE PROCEDURE [Audit].[s_RecreateTableTriggers]
 (
 	@apply_to_schema_name varchar(100) = NULL
@@ -156,52 +163,33 @@ FETCH NEXT FROM curs INTO @schema_name, @table_name
 WHILE @@FETCH_STATUS = 0
 BEGIN
 	PRINT 'Processing table: ' + @table_name
-	PRINT '...Dropping Triggers.'
-	SET @sql = N'IF OBJECT_ID (''[' + @schema_name +'].[' + @table_name + '_UPDATE_Audit]'',''TR'') IS NOT NULL BEGIN DROP TRIGGER [' + @schema_name +'].[' + @table_name + '_UPDATE_Audit] END;'
-	EXEC sp_executesql @sql
-	SET @sql = N'IF OBJECT_ID (''[' + @schema_name +'].[' + @table_name + '_INSERT_Audit]'',''TR'') IS NOT NULL BEGIN DROP TRIGGER [' + @schema_name +'].[' + @table_name + '_INSERT_Audit] END;'
-	EXEC sp_executesql @sql
-	SET @sql = N'IF OBJECT_ID (''[' + @schema_name +'].[' + @table_name + '_DELETE_Audit]'',''TR'') IS NOT NULL BEGIN DROP TRIGGER [' + @schema_name +'].[' + @table_name + '_DELETE_Audit] END;'
-	EXEC sp_executesql @sql
-	PRINT '...Creating Triggers.'
+	PRINT '...Dropping Trigger.'
 
-	-- UPDATE Trigger
-	SET @sql = N''
-	SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name +'].[' + @table_name + '_UPDATE_Audit] ON [' + @schema_name +'].[' + @table_name + '] AFTER UPDATE AS '
-	SET @sql = @sql + N'BEGIN '
-	SET @sql = @sql + N'SET NOCOUNT ON '
-	SET @sql = @sql + N'select * into #tmp' + @table_name + N'_Inserted from inserted;'
-	SET @sql = @sql + N'select * into #tmp' + @table_name + N'_Deleted from deleted;'
-	SET @sql = @sql + N'declare @sql nvarchar(max);'
-	SET @sql = @sql + N'select @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + ''',''' + @table_name + ''',''update'',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted'');'
-	SET @sql = @sql + N'if isnull(@sql,'''') <> '''' exec sp_executesql @sql;'
-	SET @sql = @sql + N'drop table #tmp' + @table_name + N'_Inserted;'
-	SET @sql = @sql + N'drop table #tmp' + @table_name + N'_Deleted;'
-	SET @sql = @sql + N'END'
-
+	SET @sql = N'IF OBJECT_ID (''[' + @schema_name + N'].[tr_' + @table_name + N'_Audit]'',''TR'') IS NOT NULL BEGIN DROP TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] END;'
 	EXEC sp_executesql @sql
-	SET @sql = N''
-	SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name +'].[' + @table_name + '_INSERT_Audit] ON [' + @schema_name +'].[' + @table_name + '] AFTER INSERT AS '
-	SET @sql = @sql + N'BEGIN '
-	SET @sql = @sql + N'SET NOCOUNT ON '
-	SET @sql = @sql + N'select * into #tmp' + @table_name + N'_Inserted from inserted;'
-	SET @sql = @sql + N'declare @sql nvarchar(max);'
-	SET @sql = @sql + N'select @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + ''',''' + @table_name + ''',''insert'',''#tmp' + @table_name + N'_Inserted'','''');'
-	SET @sql = @sql + N'if isnull(@sql,'''') <> '''' exec sp_executesql @sql;'
-	SET @sql = @sql + N'drop table #tmp' + @table_name + N'_Inserted;'
-	SET @sql = @sql + N'END'
+	
+	PRINT '...Creating Trigger.'
 
-	EXEC sp_executesql @sql
+	DECLARE @lf nchar(1) = NCHAR(10)
+
+	-- INSERT, UPDATE, DELETE Trigger
 	SET @sql = N''
-	SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name +'].[' + @table_name + '_DELETE_Audit] ON [' + @schema_name +'].[' + @table_name + '] AFTER DELETE AS '
-	SET @sql = @sql + N'BEGIN '
-	SET @sql = @sql + N'SET NOCOUNT ON '
-	SET @sql = @sql + N'select * into #tmp' + @table_name + N'_Deleted from deleted;'
-	SET @sql = @sql + N'declare @sql nvarchar(max);'
-	SET @sql = @sql + N'select @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + ''',''' + @table_name + ''',''delete'','''',''#tmp' + @table_name + N'_Deleted'');'
-	SET @sql = @sql + N'if isnull(@sql,'''') <> '''' exec sp_executesql @sql;'
-	SET @sql = @sql + N'drop table #tmp' + @table_name + N'_Deleted;'
-	SET @sql = @sql + N'END'
+	SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] ON [' + @schema_name + N'].[' + @table_name + N'] ' + @lf + N'AFTER INSERT, UPDATE, DELETE ' + @lf + N'AS ' + @lf
+	SET @sql = @sql + N'SET NOCOUNT ON ' + @lf
+	SET @sql = @sql + N'BEGIN ' + @lf
+	SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Inserted FROM inserted; ' + @lf
+	SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Deleted FROM deleted; ' + @lf + @lf
+	SET @sql = @sql + N'  DECLARE @sql nvarchar(max), @action nvarchar(10) = ''insert''; ' + @lf + @lf
+	SET @sql = @sql + N'  IF EXISTS(SELECT * FROM deleted) ' + @lf
+	SET @sql = @sql + N'    BEGIN ' + @lf
+	SET @sql = @sql + N'      SET @action = CASE WHEN EXISTS(SELECT * FROM inserted) THEN N''update'' ELSE N''delete'' END ' + @lf
+	SET @sql = @sql + N'    END ' + @lf + @lf
+	SET @sql = @sql + N'  SELECT @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + N''',''' + @table_name + N''','''' + @action + '''',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted''); ' + @lf + @lf
+	SET @sql = @sql + N'  IF ISNULL(@sql,'''') <> '''' EXEC sp_executesql @sql; ' + @lf + @lf
+	SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Inserted; ' + @lf
+	SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Deleted; ' + @lf
+	SET @sql = @sql + N'END' + @lf
+	
 	EXEC sp_executesql @sql
 
 	FETCH NEXT FROM curs INTO @schema_name, @table_name
@@ -226,7 +214,14 @@ RETURNS nvarchar(max)
 AS
 BEGIN
 	DECLARE @audit_key nvarchar(100),
-			@retval nvarchar(max) = N''
+			@retval nvarchar(max) = N'',
+			@key_col sysname = N'';
+
+	SELECT	@key_col = COLUMN_NAME
+	FROM INFORMATION_SCHEMA.COLUMNS
+	WHERE TABLE_SCHEMA = @schema_name
+	AND TABLE_NAME = @table_name
+	AND COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1
 
 	SELECT	@audit_key = CAST(AuditKey AS nvarchar(100)) FROM [Audit].[v_AuditKey]
 
@@ -269,12 +264,12 @@ BEGIN
 	BEGIN
 
 		IF @add_union = 1 
-			SET @retval = @retval + N' union '
+			SET @retval = @retval + N' UNION '
 		
 		IF @audit_type = 'insert'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + ''' ColumnName, i.' + @table_name + N'GID, NULL OldValue, ' + 
+					SELECT ''' + @column_name + ''' ColumnName, i.' + @key_col + N', NULL OldValue, ' + 
 					CASE 
 						WHEN @is_max = 1 THEN N'NULL NewValue' 
 						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) NewValue' 
@@ -289,18 +284,18 @@ BEGIN
 		IF @audit_type = 'update'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + N''' ColumnName, i.' + @table_name + N'GID, ' +
+					SELECT ''' + @column_name + N''' ColumnName, i.' + @key_col + N', ' +
 					CASE
 						WHEN @is_max = 1 THEN N'NULL OldValue, NULL NewValue, CONVERT(nvarchar(500),d.['+ @column_name + N']) OldValueMax, CONVERT(nvarchar(500),i.['+ @column_name + N']) NewValueMax '
 						ELSE N'CONVERT(nvarchar(max),d.['+ @column_name + N']) OldValue, CONVERT(nvarchar(max),i.['+ @column_name + N']) NewValue, NULL OldValueMax, NULL NewValueMax '
 					END + N' FROM [' + @inserted_table_name + '] i ' +
-					N'INNER JOIN [' + @deleted_table_name + '] d ON i.' + @table_name + N'GID = d.' + @table_name + N'GID AND (i.['+ @column_name + '] <> d.['+ @column_name + '] OR i.['+ @column_name + '] IS NOT NULL AND d.['+ @column_name + '] IS NULL)'
+					N'INNER JOIN [' + @deleted_table_name + '] d ON i.' + @key_col + N' = d.' + @key_col + N' AND (i.['+ @column_name + '] <> d.['+ @column_name + '] OR i.['+ @column_name + '] IS NOT NULL AND d.['+ @column_name + '] IS NULL)'
 			END
 		
 		IF @audit_type = 'delete'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + N''' ColumnName, i.' + @table_name + N'GID, ' + 
+					SELECT ''' + @column_name + N''' ColumnName, i.' + @key_col + N', ' + 
 					CASE
 						WHEN @is_max = 1 THEN N'NULL OldValue, '
 						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) OldValue, '
@@ -326,22 +321,28 @@ END;
 GO
 
 
+
+DECLARE @schema sysname = 'dbo' -- schema to apply the audit function to
+
 -- execute setup procedures
-print 'Executing setup procedures.'
-GO
--- *** (2) ***
-declare @TargetSchemaToAudit varchar(100) = 'dbo' -- schema to apply the audit function to
-if isnull(@TargetSchemaToAudit,'') <> ''
-begin
-	print 'Executing [Audit].[s_PopulateAuditConfig].'
-	exec  [Audit].[s_PopulateAuditConfig] @TargetSchemaToAudit
-	print 'Executing [Audit].[s_RecreateTableTriggers].'
-	exec  [Audit].[s_RecreateTableTriggers] @TargetSchemaToAudit
-end
+PRINT N'------------------------------------------------------------------------------------------'
+PRINT N'Executing setup procedures on schema: ' + @schema
+PRINT N'If other schemas need to be setup, please rerun this last section with schema name changed'
+
+IF ISNULL(@schema,'') <> ''
+BEGIN
+	PRINT 'Executing [Audit].[s_PopulateAuditConfig].'
+	EXEC  [Audit].[s_PopulateAuditConfig] @schema
+	
+	PRINT 'Executing [Audit].[s_RecreateTableTriggers].'
+	EXEC  [Audit].[s_RecreateTableTriggers] @schema
+END
 GO
 
-print 'AUDIT SETUP COMPLETE.'
+PRINT 'AUDIT SETUP COMPLETE.'
 GO
+
+
 
 
 -- Testing code
