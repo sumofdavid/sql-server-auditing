@@ -139,7 +139,7 @@ GO
 
 CREATE PROCEDURE [Audit].[s_RecreateTableTriggers]
 (
-	@apply_to_schema_name varchar(100) = NULL,
+	@apply_to_schema sysname = NULL,
 	@remove_triggers_only bit = 0
 )  
 AS
@@ -158,7 +158,7 @@ DECLARE curs CURSOR FOR
 	FROM sys.tables t 
 		INNER JOIN sys.schemas s 
 			ON t.schema_id = s.schema_id 
-	WHERE (@apply_to_schema_name IS NULL OR s.name = @apply_to_schema_name)
+	WHERE (@apply_to_schema IS NULL OR s.name = @apply_to_schema)
 
 OPEN curs
 FETCH NEXT FROM curs INTO @schema_name, @table_name
