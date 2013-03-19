@@ -13,7 +13,7 @@ IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id =
 GO
 IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'P' AND o.name = 's_RecreateTableTriggers' AND s.name = 'Audit') DROP PROCEDURE [Audit].[s_RecreateTableTriggers]
 GO
-IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'FN' AND o.name = 's_GetAuditSQL' AND s.name = 'Audit') DROP FUNCTION [Audit].[s_GetAuditSQL]
+IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'FN' AND o.name = 'f_GetAuditSQL' AND s.name = 'Audit') DROP FUNCTION [Audit].[f_GetAuditSQL]
 GO
 IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type = 'V' AND o.name = 'v_AuditKey' AND s.name = 'Audit') DROP VIEW [Audit].[v_AuditKey];
 GO
@@ -190,7 +190,7 @@ BEGIN
 			SET @sql = @sql + N'    BEGIN ' + @lf
 			SET @sql = @sql + N'      SET @action = CASE WHEN EXISTS(SELECT * FROM inserted) THEN N''update'' ELSE N''delete'' END ' + @lf
 			SET @sql = @sql + N'    END ' + @lf + @lf
-			SET @sql = @sql + N'  SELECT @sql = [Audit].[s_GetAuditSQL](''' + @schema_name + N''',''' + @table_name + N''','''' + @action + '''',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted''); ' + @lf + @lf
+			SET @sql = @sql + N'  SELECT @sql = [Audit].[f_GetAuditSQL](''' + @schema_name + N''',''' + @table_name + N''','''' + @action + '''',''#tmp' + @table_name + N'_Inserted'',''#tmp' + @table_name + N'_Deleted''); ' + @lf + @lf
 			SET @sql = @sql + N'  IF ISNULL(@sql,'''') <> '''' EXEC sp_executesql @sql; ' + @lf + @lf
 			SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Inserted; ' + @lf
 			SET @sql = @sql + N'  DROP TABLE #tmp' + @table_name + N'_Deleted; ' + @lf
@@ -207,9 +207,9 @@ DEALLOCATE curs;
 GO
 
 -- create function [GetAuditSQL]
-print 'Creating [Audit].[s_GetAuditSQL] function.'
+print 'Creating [Audit].[f_GetAuditSQL] function.'
 GO
-CREATE FUNCTION [Audit].[s_GetAuditSQL]
+CREATE FUNCTION [Audit].[f_GetAuditSQL]
 (
 	@schema_name sysname = N'',
 	@table_name sysname = N'',
