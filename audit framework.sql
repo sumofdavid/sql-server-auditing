@@ -55,10 +55,6 @@ CREATE TABLE [Audit].[Audit]
 	[OldValueMax] [nvarchar](max) NULL,
 	[NewValueMax] [nvarchar](max) NULL
 ) 
-WITH 
-(
-	DATA_COMPRESSION = PAGE
-);
 GO
 
 -- create table [AuditConfig]
