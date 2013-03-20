@@ -68,6 +68,11 @@ CREATE TABLE [Audit].[AuditConfig]
 	[TableName] [sysname] NOT NULL,
 	[ColumnName] [sysname] NOT NULL,
 	[EnableAudit] [bit] NOT NULL CONSTRAINT df_AuditConfig_EnableAudit DEFAULT (1),
+	[Timestamp] rowversion NOT NULL,
+	[CreatedDate] datetime2(7) NOT NULL CONSTRAINT [DF_AuditConfig_CreatedDate] DEFAULT (SYSUTCDATETIME()),
+	[CreatedBy] varchar(50) NOT NULL CONSTRAINT [DF_AuditConfig_CreatedBy] DEFAULT (ORIGINAL_LOGIN()),
+	[UpdatedDate] datetime2(7) NOT NULL CONSTRAINT [DF_AuditConfig_UpdatedDate] DEFAULT (SYSUTCDATETIME()),
+	[UpdatedBy] varchar(50) NOT NULL CONSTRAINT [DF_AuditConfig_UpdatedBy] DEFAULT (ORIGINAL_LOGIN()),
 	CONSTRAINT [uq_AuditConfig_TableName_ColumnName] UNIQUE NONCLUSTERED 
 	(
 		[SchemaName] ASC,
