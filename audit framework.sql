@@ -225,11 +225,30 @@ BEGIN
 			@retval nvarchar(max) = N'',
 			@key_col sysname = N'';
 
-	SELECT	@key_col = COLUMN_NAME
-	FROM INFORMATION_SCHEMA.COLUMNS
-	WHERE TABLE_SCHEMA = @schema_name
-	AND TABLE_NAME = @table_name
-	AND COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1
+	DECLARE @pk_cols TABLE (TABLE_NAME sysname NOT NULL, COLUMN_NAME sysname NOT NULL, DATA_TYPE sysname NOT NULL)
+
+	-- get the primary key columns for the specified table
+	INSERT INTO @pk_cols ( TABLE_NAME , COLUMN_NAME , DATA_TYPE)
+	SELECT 
+		i.name AS index_name
+		,c.name AS column_name
+		,TYPE_NAME(c.user_type_id)AS column_type 
+	FROM sys.indexes AS i
+		INNER JOIN sys.index_columns AS ic 
+			ON i.object_id = ic.object_id 
+			AND i.index_id = ic.index_id
+		INNER JOIN sys.columns AS c 
+			ON ic.object_id = c.object_id 
+			AND c.column_id = ic.column_id
+	WHERE i.is_primary_key = 1 
+	AND i.object_id = OBJECT_ID('PTRClassesRel');
+
+	-- make sure there's only a single column and it's a numeric
+	IF (SELECT COUNT(*) FROM @pk_cols) <> 1 AND EXISTS(SELECT 0 FROM @pk_cols WHERE DATA_TYPE NOT IN ('tinyint','smallint','int','bigint'))
+		RETURN @retval
+
+	-- get the primary key column name
+	SELECT	@key_col = COLUMN_NAME FROM @pk_cols;
 
 	SELECT	@audit_key = CAST(AuditKey AS nvarchar(100)) FROM [Audit].[v_AuditKey]
 
