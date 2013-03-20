@@ -49,6 +49,7 @@ CREATE TABLE [Audit].[Audit]
 	[AuditKey] [uniqueidentifier] NOT NULL,
 	[AuditType] [char](1) NOT NULL CONSTRAINT ck_Audit_AuditKey CHECK (AuditType IN ('I','D','U')),
 	[ColumnName] [sysname] NOT NULL,
+	[RecordID] [bigint] NOT NULL,
 	[OldValue] [nvarchar](500) NULL,
 	[NewValue] [nvarchar](500) NULL,
 	[OldValueMax] [nvarchar](max) NULL,
@@ -235,7 +236,7 @@ BEGIN
 		RETURN @retval
 
 	SET @retval =	N'
-					INSERT INTO [Audit].[Audit] (LoginName,AuditKey,SchemaName,TableName,AuditType,ColumnName,OldValue,NewValue,OldValueMax,NewValueMax) 
+					INSERT INTO [Audit].[Audit] (LoginName,AuditKey,SchemaName,TableName,AuditType,ColumnName,RecordID,OldValue,NewValue,OldValueMax,NewValueMax) 
 					SELECT ORIGINAL_LOGIN(), ''' + @audit_key + ''',''' + @schema_name + ''',''' + @table_name + ''',''' + LOWER(LEFT(@audit_type,1)) + ''', 
 					* 
 					FROM 
