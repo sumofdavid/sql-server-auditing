@@ -181,7 +181,7 @@ BEGIN
 
 			-- INSERT, UPDATE, DELETE Trigger
 			SET @sql = N''
-			SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_Audit] ON [' + @schema_name + N'].[' + @table_name + N'] ' + @lf + N'AFTER INSERT, UPDATE, DELETE ' + @lf + N'AS ' + @lf
+			SET @sql = @sql + N'CREATE TRIGGER [' + @schema_name + N'].[tr_' + @table_name + N'_audit] ON [' + @schema_name + N'].[' + @table_name + N'] ' + @lf + N'AFTER INSERT, UPDATE, DELETE ' + @lf + N'AS ' + @lf
 			SET @sql = @sql + N'SET NOCOUNT ON ' + @lf
 			SET @sql = @sql + N'BEGIN ' + @lf
 			SET @sql = @sql + N'  SELECT * INTO #tmp' + @table_name + N'_Inserted FROM inserted; ' + @lf
@@ -198,6 +198,15 @@ BEGIN
 			SET @sql = @sql + N'END' + @lf
 	
 			EXEC sp_executesql @sql
+
+			-- set the audit triggers to fire last
+			SET @sql = N''
+			SET @sql = @sql + N'[' + @schema_name + N'].[tr_' + @table_name + N'_audit]'
+
+			EXEC sp_settriggerorder @triggername = @sql, @order='Last', @stmttype = 'INSERT';
+			EXEC sp_settriggerorder @triggername = @sql, @order='Last', @stmttype = 'UPDATE';
+			EXEC sp_settriggerorder @triggername = @sql, @order='Last', @stmttype = 'DELETE';
+
 		END
 
 	FETCH NEXT FROM curs INTO @schema_name, @table_name
