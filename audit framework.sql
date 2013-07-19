@@ -1,4 +1,3 @@
-
 PRINT 'AUDIT SETUP START.'
 GO
 
@@ -157,6 +156,8 @@ DECLARE curs CURSOR FOR
 		s.name, 
 		t.name 
 	FROM sys.tables t 
+		INNER JOIN (SELECT DISTINCT TableName FROM Audit.AuditConfig) a
+			ON t.name = a.TableName
 		INNER JOIN sys.schemas s 
 			ON t.schema_id = s.schema_id 
 	WHERE (@apply_to_schema IS NULL OR s.name = @apply_to_schema)
