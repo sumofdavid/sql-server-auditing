@@ -251,7 +251,7 @@ BEGIN
 			ON ic.object_id = c.object_id 
 			AND c.column_id = ic.column_id
 	WHERE i.is_primary_key = 1 
-	AND i.object_id = OBJECT_ID('PTRClassesRel');
+	AND i.object_id = OBJECT_ID(@schema_name + '.' + @table_name);
 
 	-- make sure there's only a single column and it's a numeric
 	IF (SELECT COUNT(*) FROM @pk_cols) <> 1 AND EXISTS(SELECT 0 FROM @pk_cols WHERE DATA_TYPE NOT IN ('tinyint','smallint','int','bigint'))
@@ -326,7 +326,7 @@ BEGIN
 						WHEN @is_max = 1 THEN N'NULL OldValue, NULL NewValue, CONVERT(nvarchar(500),d.['+ @column_name + N']) OldValueMax, CONVERT(nvarchar(500),i.['+ @column_name + N']) NewValueMax '
 						ELSE N'CONVERT(nvarchar(max),d.['+ @column_name + N']) OldValue, CONVERT(nvarchar(max),i.['+ @column_name + N']) NewValue, NULL OldValueMax, NULL NewValueMax '
 					END + N' FROM [' + @inserted_table_name + '] i ' +
-					N'INNER JOIN [' + @deleted_table_name + '] d ON i.' + @key_col + N' = d.' + @key_col + N' AND (i.['+ @column_name + '] <> d.['+ @column_name + '] OR i.['+ @column_name + '] IS NOT NULL AND d.['+ @column_name + '] IS NULL)'
+					N'INNER JOIN [' + @deleted_table_name + '] d ON i.' + @key_col + N' = d.' + @key_col + N' AND (i.['+ @column_name + '] <> d.['+ @column_name + '] OR i.['+ @column_name + '] IS NOT NULL AND d.['+ @column_name + '] IS NULL OR i.[' + @column_name + '] IS NULL AND d.[' + @column_name + '] IS NOT NULL)'
 			END
 		
 		IF @audit_type = 'delete'
