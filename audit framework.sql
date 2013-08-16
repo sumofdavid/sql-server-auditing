@@ -93,6 +93,7 @@ GO
 CREATE procedure [Audit].[s_PopulateAuditConfig]
 (
 	@apply_to_schema sysname = NULL,
+	@apply_to_table sysname = NULL,
 	@repopulate bit = 0
 )
 AS
@@ -126,6 +127,7 @@ FROM sys.tables t
 		ON t.name = i.TABLE_NAME
 		AND s.name = i.TABLE_SCHEMA
 WHERE (@apply_to_schema IS NULL OR s.name = @apply_to_schema)
+AND (@apply_to_table IS NULL OR t.name = @apply_to_table)
 AND	c.name NOT IN ('ID','LU','FU','LastUpdate','FirstUpdate','LastUpdateDate','FirstUpdateDate','CreateDate','CreatedDate','CreateBy','CreatedBy','ModifiedBy','ModifiedDate')
 AND NOT EXISTS	(SELECT 0 FROM [Audit].[AuditConfig] ac WHERE ac.Tablename = t.[name] AND ac.ColumnName = c.[name] AND ac.SchemaName = s.[name])
 AND c.user_type_id NOT IN (128,129,130,241) -- don't include hierarchy, geography, geometry, xml
