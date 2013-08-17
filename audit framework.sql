@@ -100,7 +100,11 @@ AS
 SET NOCOUNT ON
 
 IF @repopulate  = 1 
-	TRUNCATE TABLE [Audit].[AuditConfig]
+	DELETE 
+	FROM [Audit].[AuditConfig]
+	WHERE (@apply_to_schema IS NULL OR SchemaName = @apply_to_schema)
+	AND (@apply_to_table IS NULL OR TableName = @apply_to_table)
+
 
 INSERT  INTO [Audit].[AuditConfig]
 (
