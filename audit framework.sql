@@ -126,7 +126,7 @@ FROM sys.tables t
 					TABLE_SCHEMA,
 					TABLE_NAME
 				FROM INFORMATION_SCHEMA.COLUMNS
-				WHERE COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1
+				WHERE COLUMNPROPERTY(OBJECT_ID('[' + TABLE_SCHEMA + '].[' + TABLE_NAME + ']'),COLUMN_NAME,'IsIdentity') = 1
 				) i
 		ON t.name = i.TABLE_NAME
 		AND s.name = i.TABLE_SCHEMA
@@ -135,7 +135,7 @@ AND (@apply_to_table IS NULL OR t.name = @apply_to_table)
 AND	c.name NOT IN ('ID','LU','FU','LastUpdate','FirstUpdate','LastUpdateDate','FirstUpdateDate','CreateDate','CreatedDate','CreateBy','CreatedBy','ModifiedBy','ModifiedDate')
 AND NOT EXISTS	(SELECT 0 FROM [Audit].[AuditConfig] ac WHERE ac.Tablename = t.[name] AND ac.ColumnName = c.[name] AND ac.SchemaName = s.[name])
 AND c.user_type_id NOT IN (128,129,130,241) -- don't include hierarchy, geography, geometry, xml
-AND EXISTS(	SELECT 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID(TABLE_NAME),COLUMN_NAME,'IsIdentity') = 1 AND t.name = TABLE_NAME AND s.name = TABLE_SCHEMA) -- only tables with IDENTITY
+AND EXISTS(	SELECT 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID('[' + TABLE_SCHEMA + '].[' + TABLE_NAME + ']'),COLUMN_NAME,'IsIdentity') = 1 AND t.name = TABLE_NAME AND s.name = TABLE_SCHEMA) -- only tables with IDENTITY
 ;
 GO
 
