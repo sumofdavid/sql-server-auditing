@@ -132,7 +132,8 @@ FROM sys.tables t
 		AND s.name = i.TABLE_SCHEMA
 WHERE (@apply_to_schema IS NULL OR s.name = @apply_to_schema)
 AND (@apply_to_table IS NULL OR t.name = @apply_to_table)
-AND	c.name NOT IN ('ID','LU','FU','LastUpdate','FirstUpdate','LastUpdateDate','FirstUpdateDate','CreateDate','CreatedDate','CreateBy','CreatedBy','ModifiedBy','ModifiedDate')
+AND	c.name NOT IN ('ID','LU','FU','LastUpdate','FirstUpdate','LastUpdateDate','FirstUpdateDate','CreateDate','CreatedDate','CreateBy','CreatedBy','ModifiedBy','ModifiedDate','Timestamp','Rowversion')
+AND COLUMNPROPERTY(OBJECT_ID('[' + s.name + '].[' + t.name + ']'),c.name,'IsIdentity') = 0 -- don't include identity values
 AND NOT EXISTS	(SELECT 0 FROM [Audit].[AuditConfig] ac WHERE ac.Tablename = t.[name] AND ac.ColumnName = c.[name] AND ac.SchemaName = s.[name])
 AND c.user_type_id NOT IN (128,129,130,241) -- don't include hierarchy, geography, geometry, xml
 AND EXISTS(	SELECT 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(OBJECT_ID('[' + TABLE_SCHEMA + '].[' + TABLE_NAME + ']'),COLUMN_NAME,'IsIdentity') = 1 AND t.name = TABLE_NAME AND s.name = TABLE_SCHEMA) -- only tables with IDENTITY
