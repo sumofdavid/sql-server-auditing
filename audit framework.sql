@@ -325,7 +325,8 @@ BEGIN
 						WHEN @is_max = 1 THEN N'CONVERT(nvarchar(max),i.[' + @column_name + N']) NewValueMax' 
 						ELSE N'NULL NewValueMax' 
 					END + 
-					N' FROM [' + @inserted_table_name + N'] i'
+					N' FROM [' + @inserted_table_name + N'] i ' +
+					N' WHERE ' + @column_name + N' IS NOT NULL '
 			END
 		
 		IF @audit_type = 'update'
