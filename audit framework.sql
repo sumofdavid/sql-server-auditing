@@ -4,6 +4,47 @@ GO
 -- delete all existing objects
 PRINT 'Deleting existing objects.'
 GO
+
+-- delete any existing audit triggers
+PRINT 'deleting audit triggers'
+GO
+DECLARE @schema sysname,
+                @trigger sysname,
+                @sql nvarchar(max)
+
+DECLARE curs CURSOR FOR
+		SELECT
+			s.[name],
+			tr.[name]
+        FROM sys.objects tr
+                INNER JOIN sys.schemas s
+                        ON tr.schema_id = s.schema_id
+        WHERE tr.[type] = N'TR'
+		AND tr.[name] LIKE '%|_audit' ESCAPE '|'
+
+OPEN curs
+
+FETCH NEXT FROM curs INTO @schema, @trigger
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+
+                -- drop the constraint
+                SELECT @sql = N'DROP TRIGGER ' + @schema + N'.' + @trigger;
+
+				PRINT @sql;
+				                
+                -- drop the constraints
+                EXEC sp_executesql @sql;
+
+        FETCH NEXT FROM curs INTO @schema, @trigger
+END
+
+CLOSE curs
+DEALLOCATE curs
+GO
+
+-- delete tables, views, and procs
 IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'Audit' AND s.name = 'Audit') DROP TABLE [Audit].[Audit]
 GO
 IF EXISTS (SELECT 0 FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'AuditConfig' AND s.name = 'Audit') DROP TABLE [Audit].[AuditConfig]
@@ -18,7 +59,6 @@ IF EXISTS (SELECT * FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id =
 GO
 IF EXISTS (SELECT 0 FROM sys.schemas s WHERE s.name = 'Audit') DROP SCHEMA [Audit]
 GO
-
 
 
 -- create schema [Audit]
