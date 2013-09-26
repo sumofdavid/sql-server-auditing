@@ -276,8 +276,8 @@ BEGIN
 		RETURN @retval
 
 	SET @retval =	N'
-					INSERT INTO [Audit].[Audit] (LoginName,AuditKey,SchemaName,TableName,AuditType,ColumnName,RecordID,OldValue,NewValue,OldValueMax,NewValueMax) 
-					SELECT ORIGINAL_LOGIN(), ''' + @audit_key + ''',''' + @schema_name + ''',''' + @table_name + ''',''' + LOWER(LEFT(@audit_type,1)) + ''', 
+					INSERT INTO [Audit].[Audit] (AuditKey,SchemaName,TableName,AuditType,LoginName,ColumnName,RecordID,OldValue,NewValue,OldValueMax,NewValueMax) 
+					SELECT ''' + @audit_key + ''',''' + @schema_name + ''',''' + @table_name + ''',''' + LOWER(LEFT(@audit_type,1)) + ''', 
 					* 
 					FROM 
 					(
@@ -316,42 +316,42 @@ BEGIN
 		IF @audit_type = 'insert'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + ''' ColumnName, i.' + @key_col + N', NULL OldValue, ' + 
+					SELECT i.ModifiedBy AS LoginName, ''' + @column_name + N''' AS ColumnName, i.' + @key_col + N' AS RecordID, NULL AS OldValue, ' + 
 					CASE 
-						WHEN @is_max = 1 THEN N'NULL NewValue' 
-						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) NewValue' 
-					END + N', NULL OldValueMax, ' + 
+						WHEN @is_max = 1 THEN N'NULL AS NewValue' 
+						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) AS NewValue' 
+					END + N', NULL AS OldValueMax, ' + 
 					CASE 
-						WHEN @is_max = 1 THEN N'CONVERT(nvarchar(max),i.[' + @column_name + N']) NewValueMax' 
-						ELSE N'NULL NewValueMax' 
+						WHEN @is_max = 1 THEN N'CONVERT(nvarchar(max),i.[' + @column_name + N']) AS NewValueMax' 
+						ELSE N'NULL AS NewValueMax' 
 					END + 
 					N' FROM [' + @inserted_table_name + N'] i ' +
 					N' WHERE ' + @column_name + N' IS NOT NULL '
 			END
-		
+
 		IF @audit_type = 'update'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + N''' ColumnName, i.' + @key_col + N', ' +
+					SELECT i.ModifiedBy AS LoginName, ''' + @column_name + N''' AS ColumnName, i.' + @key_col + N' AS RecordID, ' +
 					CASE
-						WHEN @is_max = 1 THEN N'NULL OldValue, NULL NewValue, CONVERT(nvarchar(500),d.['+ @column_name + N']) OldValueMax, CONVERT(nvarchar(500),i.['+ @column_name + N']) NewValueMax '
-						ELSE N'CONVERT(nvarchar(max),d.['+ @column_name + N']) OldValue, CONVERT(nvarchar(max),i.['+ @column_name + N']) NewValue, NULL OldValueMax, NULL NewValueMax '
+						WHEN @is_max = 1 THEN N'NULL AS OldValue, NULL AS NewValue, CONVERT(nvarchar(max),d.['+ @column_name + N']) AS OldValueMax, CONVERT(nvarchar(max),i.['+ @column_name + N']) AS NewValueMax '
+						ELSE N'CONVERT(nvarchar(500),d.['+ @column_name + N']) AS OldValue, CONVERT(nvarchar(500),i.['+ @column_name + N']) AS NewValue, NULL AS OldValueMax, NULL AS NewValueMax '
 					END + N' FROM [' + @inserted_table_name + '] i ' +
 					N'INNER JOIN [' + @deleted_table_name + '] d ON i.' + @key_col + N' = d.' + @key_col + N' AND (i.['+ @column_name + '] <> d.['+ @column_name + '] OR i.['+ @column_name + '] IS NOT NULL AND d.['+ @column_name + '] IS NULL OR i.[' + @column_name + '] IS NULL AND d.[' + @column_name + '] IS NOT NULL)'
 			END
-		
+
 		IF @audit_type = 'delete'
 			BEGIN
 				SET @retval = @retval + N'
-					SELECT ''' + @column_name + N''' ColumnName, i.' + @key_col + N', ' + 
+					SELECT i.ModifiedBy AS LoginName, ''' + @column_name + N''' AS ColumnName, i.' + @key_col + N' AS RecordID, ' + 
 					CASE
-						WHEN @is_max = 1 THEN N'NULL OldValue, '
-						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) OldValue, '
-					END + N'NULL NewValue, ' +
+						WHEN @is_max = 1 THEN N'NULL AS OldValue, '
+						ELSE N'CONVERT(nvarchar(500),i.['+ @column_name + N']) AS OldValue, '
+					END + N'NULL AS NewValue, ' +
 					CASE
-						WHEN @is_max = 1 THEN N'CONVERT(nvarchar(max),i.[' + @column_name + N']) OldValueMax, '
-						ELSE N'NULL OldValueMax, '
-					END + N'NULL NewValueMax FROM [' + @deleted_table_name + N'] i'
+						WHEN @is_max = 1 THEN N'CONVERT(nvarchar(max),i.[' + @column_name + N']) AS OldValueMax, '
+						ELSE N'NULL AS OldValueMax, '
+					END + N'NULL AS NewValueMax FROM [' + @deleted_table_name + N'] i'
 			END
         
 		SET @add_union = 1
